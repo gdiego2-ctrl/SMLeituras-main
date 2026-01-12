@@ -51,31 +51,34 @@ const ClientDetails: React.FC = () => {
   const handleDelete = async () => {
     if (!client) return;
 
-    // Step 1: Check if client can be deleted
+    // Step 1: Check if client can be deactivated (no pending invoices)
     try {
       const { canDelete, message } = await supabase.clients.canDeleteClient(client.id);
 
       if (!canDelete) {
-        alert(`❌ ${message}`);
+        alert(`❌ Não é possível desativar: ${message}`);
         return;
       }
 
-      // Step 2: Confirm deletion
-      const confirmMessage = `⚠️ ATENÇÃO: Esta ação não pode ser desfeita!\n\nVocê está prestes a excluir:\n• Cliente: ${client.nome}\n• Email: ${client.email}\n• ID Medidor: ${client.id_medidor}\n\nA conta de acesso também será removida.\n\nDeseja realmente continuar?`;
+      // Step 2: Confirm deactivation
+      const confirmMessage = `⚠️ ATENÇÃO!\n\nVocê está prestes a DESATIVAR:\n• Cliente: ${client.nome}\n• Email: ${client.email}\n• ID Medidor: ${client.id_medidor}\n\nO cliente será marcado como INATIVO e não aparecerá nas listagens.\n✅ O cliente pode ser REATIVADO posteriormente.\n✅ As faturas pagas serão mantidas.\n\nDeseja continuar?`;
 
       if (!confirm(confirmMessage)) {
         return;
       }
 
-      // Step 3: Delete client
+      // Step 3: Soft delete - Mark as inactive
       setIsDeleting(true);
-      await supabase.clients.deleteClientWithAuth(client.id, client.user_id);
+      await supabase.clients.save({
+        id: client.id,
+        status: 'inativo'
+      });
 
-      alert('✅ Cliente excluído com sucesso!');
+      alert('✅ Cliente desativado com sucesso!\n\nPara reativar, edite o cliente e mude o status para "ativo".');
       navigate('/clientes');
     } catch (err: any) {
-      console.error('Error deleting client:', err);
-      alert('❌ Erro ao excluir cliente: ' + (err.message || 'Erro desconhecido'));
+      console.error('Error deactivating client:', err);
+      alert('❌ Erro ao desativar cliente: ' + (err.message || 'Erro desconhecido'));
     } finally {
       setIsDeleting(false);
     }
@@ -182,17 +185,17 @@ const ClientDetails: React.FC = () => {
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="w-full bg-white dark:bg-surface-dark border border-red-100 text-red-600 font-black py-4 rounded-2xl active:scale-[0.98] transition-all uppercase text-xs tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-white dark:bg-surface-dark border border-orange-100 text-orange-600 font-black py-4 rounded-2xl active:scale-[0.98] transition-all uppercase text-xs tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isDeleting ? (
               <>
                 <span className="material-symbols-outlined animate-spin">sync</span>
-                Excluindo...
+                Desativando...
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined">delete</span>
-                Excluir Cliente
+                <span className="material-symbols-outlined">block</span>
+                Desativar Cliente
               </>
             )}
           </button>

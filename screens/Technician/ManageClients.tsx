@@ -77,10 +77,13 @@ const ManageClients: React.FC = () => {
     }
   };
 
-  const filtered = clients.filter(c => 
-    c.nome.toLowerCase().includes(search.toLowerCase()) || 
-    c.id_medidor.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = clients.filter(c => {
+    // Filter out inactive clients by default
+    const isActive = !c.status || c.status === 'ativo';
+    const matchesSearch = c.nome.toLowerCase().includes(search.toLowerCase()) ||
+                          c.id_medidor.toLowerCase().includes(search.toLowerCase());
+    return isActive && matchesSearch;
+  });
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-background-light dark:bg-background-dark flex flex-col relative">
