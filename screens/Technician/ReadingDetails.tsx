@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { Reading, Client } from '../../types';
+import ManualPaymentModal from './ManualPaymentModal';
 
 const ReadingDetails: React.FC = () => {
   const { id } = useParams();
@@ -12,6 +13,7 @@ const ReadingDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [userRole, setUserRole] = useState<'tecnico' | 'cliente'>('tecnico');
+  const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
 
   const fetchData = async (showLoading = true) => {
     if (!id) return;
@@ -56,6 +58,29 @@ const ReadingDetails: React.FC = () => {
     } catch (err: any) {
       console.error("Erro técnico:", err);
       alert("ERRO AO SALVAR: Certifique-se de que o RLS está desativado no Supabase.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleManualPayment = async (valorAjustado: number, observacao: string) => {
+    if (!id || !reading || actionLoading) return;
+
+    setActionLoading(true);
+    try {
+      await supabase.readings.markAsPaidManual(id, valorAjustado, observacao);
+      setReading(prev => prev ? {
+        ...prev,
+        status: 'Pago',
+        pago_em: new Date().toISOString(),
+        observacoes: observacao
+      } : null);
+      setShowManualPaymentModal(false);
+      alert("PAGAMENTO REGULARIZADO MANUALMENTE!");
+      await fetchData(false);
+    } catch (err: any) {
+      console.error("Erro ao regularizar:", err);
+      alert(`ERRO: ${err.message}`);
     } finally {
       setActionLoading(false);
     }
@@ -141,6 +166,17 @@ const ReadingDetails: React.FC = () => {
                Status: {reading.status.toUpperCase()}
              </span>
           </div>
+          {reading.observacoes && (
+            <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <div className="flex gap-2 items-start">
+                <span className="material-symbols-outlined text-amber-600 text-sm">info</span>
+                <div>
+                  <p className="text-[9px] font-black uppercase text-amber-600 mb-1">Observação</p>
+                  <p className="text-[11px] font-medium text-amber-800">{reading.observacoes}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <section className="space-y-4">
@@ -188,21 +224,32 @@ const ReadingDetails: React.FC = () => {
 
       <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100 p-6 pb-12 flex flex-col gap-3 print:hidden z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
         {userRole === 'tecnico' && !isPaid && !isCanceled ? (
-          <button 
-            type="button"
-            onClick={(e) => { e.preventDefault(); handleMarkAsPaid(); }}
-            disabled={actionLoading}
-            className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all disabled:opacity-50"
-          >
-            {actionLoading ? (
-              <span className="material-symbols-outlined animate-spin">sync</span>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-xl">check_circle</span> 
-                Confirmar Recebimento
-              </>
-            )}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setShowManualPaymentModal(true)}
+              disabled={actionLoading}
+              className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all disabled:opacity-50"
+            >
+              {actionLoading ? (
+                <span className="material-symbols-outlined animate-spin">sync</span>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-xl">payments</span>
+                  Regularizar Pagamento
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); handleMarkAsPaid(); }}
+              disabled={actionLoading}
+              className="w-full h-12 bg-primary text-white rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-lg">check_circle</span>
+              Confirmar Valor Integral
+            </button>
+          </>
         ) : isPaid ? (
            <div className="w-full h-16 bg-green-50 text-green-600 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 border border-green-100 animate-in fade-in">
              <span className="material-symbols-outlined text-xl">verified</span> 
@@ -223,6 +270,14 @@ const ReadingDetails: React.FC = () => {
            </button>
         )}
       </div>
+
+      {showManualPaymentModal && reading && (
+        <ManualPaymentModal
+          reading={reading}
+          onSave={handleManualPayment}
+          onClose={() => setShowManualPaymentModal(false)}
+        />
+      )}
     </div>
   );
 };

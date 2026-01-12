@@ -21,6 +21,13 @@ dist-ssr
 # Supabase
 .supabase/
 
+# Vercel
+.vercel
+
+# Temporary files
+tmpclaude-*
+nul
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

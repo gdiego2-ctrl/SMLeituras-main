@@ -38,17 +38,22 @@ export interface Reading {
 export interface Pagamento {
   id: string;
   leitura_id: string;
-  mercadopago_payment_id: number;
+  mercadopago_payment_id?: number; // Optional for manual payments
   valor: number;
-  tipo_pagamento: string;
+  tipo_pagamento: 'pix' | 'manual'; // Explicit type options
   status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired' | 'in_process';
-  qr_code: string;
-  qr_code_base64: string;
+  qr_code?: string; // Optional for manual payments
+  qr_code_base64?: string; // Optional for manual payments
   criado_em: string;
-  expira_em: string;
+  expira_em?: string; // Optional for manual payments
   pago_em?: string;
   atualizado_em: string;
   metadados?: any;
+  // New fields for manual payment support
+  is_manual?: boolean;
+  valor_ajustado?: number;
+  observacao?: string;
+  criado_por?: string; // User ID who created manual payment
 }
 
 export type UserRole = 'tecnico' | 'cliente';
@@ -60,4 +65,36 @@ export interface UserSession {
     name: string;
     role: UserRole;
   } | null;
+}
+
+// New interfaces for client history feature
+export interface ClientHistorySummary {
+  clientId: string;
+  clientName: string;
+  totalBilled: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  monthlyAverage: number;
+  invoiceCount: number;
+  paidInvoiceCount: number;
+  pendingInvoiceCount: number;
+  overdueInvoiceCount: number;
+}
+
+export interface ConsumptionData {
+  month: string; // Format: "2024-01"
+  monthLabel: string; // Format: "Jan 2024"
+  consumoKwh: number;
+  valorTotal: number;
+}
+
+export interface PaymentHistoryItem {
+  id: string;
+  leituraId: string;
+  valor: number;
+  tipoPagamento: 'pix' | 'manual';
+  dataRegistro: string;
+  observacao?: string;
+  isManual: boolean;
+  criadoPor?: string;
 }

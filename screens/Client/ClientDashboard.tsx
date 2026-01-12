@@ -623,8 +623,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ onLogout, user }) => 
                     <div className="space-y-4">
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(currentPayment.qr_code);
-                          alert("Código PIX copiado! Cole no app do seu banco.");
+                          if (currentPayment.qr_code) {
+                            navigator.clipboard.writeText(currentPayment.qr_code);
+                            alert("Código PIX copiado! Cole no app do seu banco.");
+                          }
                         }}
                         className="w-full py-5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-95 border border-slate-200"
                       >

@@ -17,6 +17,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["."],
-  "exclude": ["node_modules", "dist"]
+  "include": ["screens", "services", "types.ts", "supabase.ts", "App.tsx", "main.tsx", "constants.ts", "vite-env.d.ts"],
+  "exclude": ["node_modules", "dist", "supabase/functions"]
 }

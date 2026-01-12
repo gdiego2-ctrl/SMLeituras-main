@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Client, Reading } from './types';
+import { Client, Reading, PaymentHistoryItem, ClientHistorySummary, ConsumptionData } from './types';
 import { PAYMENT_DEADLINE_DAYS, READING_INTERVAL_DAYS } from './constants';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -343,6 +343,203 @@ export const supabase = {
         .limit(1)
         .maybeSingle();
       return data || null;
+    },
+
+    /**
+     * Manual payment regularization
+     * Creates a manual payment record and marks reading as paid
+     * @param leituraId - Reading/invoice ID
+     * @param valorAjustado - Adjusted amount (if different from original)
+     * @param observacao - Required reason/observation
+     */
+    async markAsPaidManual(
+      leituraId: string,
+      valorAjustado: number,
+      observacao: string
+    ): Promise<void> {
+      if (!observacao?.trim()) {
+        throw new Error('Observação é obrigatória para regularização manual');
+      }
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) throw new Error('Usuário não autenticado');
+
+      // Validar leitura
+      const reading = await this.getById(leituraId);
+      if (!reading) throw new Error('Fatura não encontrada');
+      if (reading.status === 'Pago') throw new Error('Fatura já está paga');
+
+      // Criar pagamento manual
+      const { data: pagamento, error: pagamentoError } = await supabaseClient
+        .from('pagamentos')
+        .insert({
+          leitura_id: leituraId,
+          valor: reading.valor_total,
+          valor_ajustado: valorAjustado !== reading.valor_total ? valorAjustado : null,
+          tipo_pagamento: 'manual',
+          status: 'approved',
+          is_manual: true,
+          observacao: observacao.trim(),
+          criado_por: session.user.id,
+          pago_em: new Date().toISOString(),
+          criado_em: new Date().toISOString(),
+          atualizado_em: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (pagamentoError) throw pagamentoError;
+
+      // Atualizar leitura
+      const { error: leituraError } = await supabaseClient
+        .from('leituras')
+        .update({
+          status: 'Pago',
+          pago_em: new Date().toISOString(),
+          pagamento_id_atual: pagamento.id,
+          observacoes: observacao
+        })
+        .eq('id', leituraId);
+
+      if (leituraError) throw leituraError;
+    },
+
+    /**
+     * Get all readings for a specific client
+     * Used for client history screen
+     * @param clientId - Client UUID
+     */
+    async getByClientId(clientId: string): Promise<Reading[]> {
+      try {
+        const { data, error } = await supabaseClient
+          .from('leituras')
+          .select('*')
+          .eq('cliente_id', clientId)
+          .order('data_atual', { ascending: false });
+
+        if (error) throw error;
+
+        const today = new Date().toISOString().split('T')[0];
+
+        return (data || []).map(r => {
+          const reading = r as any;
+          let currentStatus = reading.status || 'Pendente';
+
+          const venc = reading.vencimento || today;
+          if (currentStatus !== 'Pago' && currentStatus !== 'Cancelada' && venc < today) {
+            currentStatus = 'Vencido';
+          }
+
+          return { ...reading, status: currentStatus } as Reading;
+        });
+      } catch (err) {
+        console.error('Error fetching client readings:', err);
+        return [];
+      }
+    }
+  },
+
+  payments: {
+    /**
+     * Get all payment history for a client
+     * Includes both PIX and manual payments
+     * @param clientId - Client UUID
+     */
+    async getByClientId(clientId: string): Promise<PaymentHistoryItem[]> {
+      try {
+        const { data, error } = await supabaseClient
+          .from('pagamentos')
+          .select(`*, leituras!inner(cliente_id)`)
+          .eq('leituras.cliente_id', clientId)
+          .order('criado_em', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map(p => ({
+          id: p.id,
+          leituraId: p.leitura_id,
+          valor: p.valor_ajustado || p.valor,
+          tipoPagamento: p.tipo_pagamento,
+          dataRegistro: p.pago_em || p.criado_em,
+          observacao: p.observacao,
+          isManual: p.is_manual || false,
+          criadoPor: p.criado_por
+        }));
+      } catch (err) {
+        console.error('Error fetching payment history:', err);
+        return [];
+      }
+    }
+  },
+
+  history: {
+    /**
+     * Get complete client history summary
+     * Aggregates financial data for summary cards
+     * @param clientId - Client UUID
+     */
+    async getClientSummary(clientId: string): Promise<ClientHistorySummary | null> {
+      try {
+        const readings = await supabase.readings.getByClientId(clientId);
+        if (readings.length === 0) return null;
+
+        const totalBilled = readings.reduce((sum, r) => sum + Number(r.valor_total), 0);
+        const totalPaid = readings
+          .filter(r => r.status === 'Pago')
+          .reduce((sum, r) => sum + Number(r.valor_total), 0);
+        const totalOutstanding = readings
+          .filter(r => r.status !== 'Pago' && r.status !== 'Cancelada')
+          .reduce((sum, r) => sum + Number(r.valor_total), 0);
+
+        return {
+          clientId,
+          clientName: readings[0]?.cliente_nome || '',
+          totalBilled,
+          totalPaid,
+          totalOutstanding,
+          monthlyAverage: readings.length > 0 ? totalBilled / readings.length : 0,
+          invoiceCount: readings.length,
+          paidInvoiceCount: readings.filter(r => r.status === 'Pago').length,
+          pendingInvoiceCount: readings.filter(r => r.status === 'Pendente').length,
+          overdueInvoiceCount: readings.filter(r => r.status === 'Vencido').length
+        };
+      } catch (err) {
+        console.error('Error getting client summary:', err);
+        return null;
+      }
+    },
+
+    /**
+     * Get consumption data for charts (month by month)
+     * @param clientId - Client UUID
+     */
+    async getConsumptionData(clientId: string): Promise<ConsumptionData[]> {
+      try {
+        const readings = await supabase.readings.getByClientId(clientId);
+
+        const monthlyData = readings.reduce((acc, reading) => {
+          const date = new Date(reading.data_atual);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+          if (!acc[monthKey]) {
+            acc[monthKey] = {
+              month: monthKey,
+              monthLabel: date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
+              consumoKwh: 0,
+              valorTotal: 0
+            };
+          }
+
+          acc[monthKey].consumoKwh += reading.consumo_periodo;
+          acc[monthKey].valorTotal += Number(reading.valor_total);
+          return acc;
+        }, {} as Record<string, ConsumptionData>);
+
+        return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
+      } catch (err) {
+        console.error('Error getting consumption data:', err);
+        return [];
+      }
     }
   }
 };
