@@ -179,7 +179,11 @@ const ClientDetails: React.FC = () => {
         </div>
 
         <div className="px-4 flex flex-col gap-3 pb-6">
-          <button className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 active:scale-[0.98] transition-all uppercase text-xs tracking-widest">
+          <button
+            onClick={() => navigate(`/cliente/${id}/historico`)}
+            className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 active:scale-[0.98] transition-all uppercase text-xs tracking-widest flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined">analytics</span>
             Histórico Completo
           </button>
           <button

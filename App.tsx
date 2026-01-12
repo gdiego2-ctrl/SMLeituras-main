@@ -12,6 +12,7 @@ const ReadingHistory = lazy(() => import('./screens/Technician/ReadingHistory'))
 const ReadingDetails = lazy(() => import('./screens/Technician/ReadingDetails'));
 const ManageClients = lazy(() => import('./screens/Technician/ManageClients'));
 const ClientDetails = lazy(() => import('./screens/Technician/ClientDetails'));
+const ClientHistory = lazy(() => import('./screens/Technician/ClientHistory'));
 const ClientDashboard = lazy(() => import('./screens/Client/ClientDashboard'));
 
 // Loading fallback component
@@ -116,6 +117,7 @@ const App: React.FC = () => {
         <Route path="/leitura/:id" element={session.user?.role === 'tecnico' ? <ReadingDetails /> : <Navigate to="/" />} />
         <Route path="/clientes" element={session.user?.role === 'tecnico' ? <ManageClients /> : <Navigate to="/" />} />
         <Route path="/cliente/:id" element={session.user?.role === 'tecnico' ? <ClientDetails /> : <Navigate to="/" />} />
+        <Route path="/cliente/:id/historico" element={session.user?.role === 'tecnico' ? <ClientHistory /> : <Navigate to="/" />} />
 
         {/* Rotas de Cliente - Reutiliza visualização de fatura */}
         <Route path="/fatura/:id" element={session.user?.role === 'cliente' ? <ReadingDetails /> : <Navigate to="/" />} />
