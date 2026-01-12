@@ -1,0 +1,7 @@
+{
+  "name": "SM Engenharia - Gestão de Faturamento",
+  "description": "Aplicativo móvel de gestão de faturamento de energia elétrica para a SM Engenharia Elétrica, focado em produtividade de campo e acesso ao cliente.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

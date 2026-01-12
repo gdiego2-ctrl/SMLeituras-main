@@ -1,0 +1,50 @@
+# Supabase Project Configuration
+
+# Project name and ID
+[project]
+name = "sm-engenharia-faturamento"
+
+# API Settings
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+# Database Settings
+[db]
+port = 54322
+major_version = 15
+
+# Studio Settings (Admin UI)
+[studio]
+enabled = true
+port = 54323
+
+# Auth Settings
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+# Storage Settings
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+# Edge Functions
+[functions]
+enabled = true
+
+# Functions specific settings
+[functions.create-pix-payment]
+verify_jwt = true
+
+[functions.mercadopago-webhook]
+verify_jwt = false  # Webhook não usa JWT, usa signature do MP
