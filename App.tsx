@@ -2,7 +2,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserSession, UserRole } from './types';
-import { supabaseClient } from './supabase';
+import { supabaseClient, isMissingConfig } from './supabase';
 
 // Lazy load screens for code splitting
 const Login = lazy(() => import('./screens/Login'));
@@ -80,6 +80,32 @@ const App: React.FC = () => {
   async function handleLogout() {
     await supabaseClient.auth.signOut();
     setSession({ user: null });
+  }
+
+  // Show config error screen if environment variables are missing
+  if (isMissingConfig) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-red-600 text-white gap-6 p-8">
+        <span className="material-symbols-outlined text-7xl">error</span>
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-black mb-4">ERRO DE CONFIGURAÇÃO</h1>
+          <p className="text-sm mb-4">
+            As variáveis de ambiente do Supabase não estão configuradas.
+          </p>
+          <div className="bg-white/10 rounded-xl p-4 text-left text-xs font-mono mb-4">
+            <p className="mb-2 font-bold">Variáveis obrigatórias:</p>
+            <p>• VITE_SUPABASE_URL</p>
+            <p>• VITE_SUPABASE_ANON_KEY</p>
+          </div>
+          <div className="text-xs text-white/80">
+            <p className="mb-2">Se você está no <strong>Vercel</strong>:</p>
+            <p>Configure as variáveis em Settings → Environment Variables</p>
+            <p className="mt-4">Se você está em <strong>desenvolvimento local</strong>:</p>
+            <p>Copie .env.example para .env.local e preencha os valores</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (loading) return (

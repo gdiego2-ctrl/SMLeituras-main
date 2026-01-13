@@ -7,11 +7,14 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
-}
+// Export flag for missing config (to show error screen in App)
+export const isMissingConfig = !SUPABASE_URL || !SUPABASE_KEY;
 
-export const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Create client with dummy values if missing (to prevent module initialization crash)
+export const supabaseClient = createClient(
+  SUPABASE_URL || 'https://placeholder.supabase.co',
+  SUPABASE_KEY || 'placeholder-key'
+);
 
 // Admin client for operations requiring service role
 // Note: Service Role Key should NEVER be exposed to the client in production!
